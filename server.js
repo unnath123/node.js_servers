@@ -1,15 +1,30 @@
 const express = require("express");
 const mongoose = require("mongoose")
 const userModel = require("./userModel")
+const session = require("express-session")
+const mongoDbSession = require("connect-mongodb-session")(session);
 
 const app = express();
 const mongo_URL = "mongodb+srv://unnath:12345@cluster0.djsaywi.mongodb.net/My_first_DB"
+const store = new mongoDbSession({
+  uri: mongo_URL,
+  collection: "sessions",
+});
 
 app.use(express.urlencoded({ extended: true }));
+app.use(session({
+    secret: "I will get a good job soon",
+    resave: false,
+    saveUninitialized: false,
+    store: store,
+})
+)
 
 mongoose.connect(mongo_URL)
 .then(()=>console.log("DB connected"))
 .catch((error)=>console.log(error))
+
+
 
 app.post("/register-form", async (req,res)=>{
   const {name, email, password} = req.body;
@@ -24,6 +39,7 @@ app.post("/register-form", async (req,res)=>{
 
   try{
     const userDb = await obj.save();
+    console.log("this is session >>> ",req.session)
     //return res.status(201).json("Register success"); to set particular status code on browser
     return res.send({
       status:200,
@@ -32,7 +48,7 @@ app.post("/register-form", async (req,res)=>{
     }) 
   }
   catch{
-    return res.send("internal server error")
+    return res.send("internal server error registration")
   }
   
 })
@@ -70,7 +86,6 @@ app.get("/login-form", (req, res)=>{
 
 app.post("/login-form", async(req, res)=>{
   const {email, password}  = req.body;
-
   try{
     const userDB = await userModel.findOne({email:email})
     console.log("user",userDB)
@@ -85,6 +100,7 @@ app.post("/login-form", async(req, res)=>{
         message:"wrong password"
       })
     }
+    req.session.isAuth = true
    return res.send("logged in")
   }
   catch(error){
@@ -95,6 +111,16 @@ app.post("/login-form", async(req, res)=>{
 
   }
   
+})
+
+app.get("/dashboard", (req, res)=>{
+  console.log(req.session)
+  if(req.session.isAuth===true){
+    return res.send("user already present and logged in")
+  }
+  else{
+    return res.send("user not present please logiin")
+  }
 })
 
 
